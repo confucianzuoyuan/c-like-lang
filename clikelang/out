@@ -1,0 +1,12 @@
+Program
+    FunctionDecl: main
+        PrimitiveTypeNode: INT
+        CompoundStmt
+            VariableDeclStmt ->             VariableDecl: str
+                PrimitiveTypeNode: INT
+                IntConst, value:1
+            BinaryExpr
+                BinaryOpASSIGN
+                SelfIncrement
+                    Identifier, name:str
+                IntConst, value:2
