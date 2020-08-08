@@ -2,11 +2,31 @@ Program
     FunctionDecl: main
         PrimitiveTypeNode: INT
         CompoundStmt
-            VariableDeclStmt ->             VariableDecl: str
+            VariableDeclStmt ->             VariableDecl: a
                 PrimitiveTypeNode: INT
-                IntConst, value:1
-            BinaryExpr
-                BinaryOpASSIGN
-                SelfIncrement
-                    Identifier, name:str
-                IntConst, value:2
+                IntConst, value:5
+            VariableDeclStmt ->             VariableDecl: b
+                PrimitiveTypeNode: INT
+                IntConst, value:5
+            VariableDeclStmt ->             VariableDecl: c
+                PrimitiveTypeNode: INT
+            IfStmt
+                BinaryExpr
+                    BinaryOpNE
+                    BinaryExpr
+                        BinaryOpDIV
+                        Identifier, name:a
+                        Identifier, name:b
+                    IntConst, value:1
+                CompoundStmt
+                    BinaryExpr
+                        BinaryOpASSIGN
+                        Identifier, name:c
+                        IntConst, value:10
+                CompoundStmt
+                    BinaryExpr
+                        BinaryOpASSIGN
+                        Identifier, name:c
+                        IntConst, value:20
+            ReturnStmt
+                Identifier, name:c

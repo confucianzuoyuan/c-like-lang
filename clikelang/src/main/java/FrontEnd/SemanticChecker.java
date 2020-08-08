@@ -8,10 +8,10 @@ import java.util.Stack;
 import static Symbol.GlobalSymbolTable.*;
 
 public class SemanticChecker implements IASTVisitor {
-    private GlobalSymbolTable globalSymbolTable;
+    private final GlobalSymbolTable globalSymbolTable;
     private SymbolTable currentScope;
 
-    private Stack<ASTNode> loopASTStack = new Stack<>();
+    private final Stack<ASTNode> loopASTStack = new Stack<>();
     private ASTNode currentFunction;
     private FunctionType currentFunctionType;
 
@@ -23,9 +23,7 @@ public class SemanticChecker implements IASTVisitor {
     @Override
     public void visit(Program node) {
         node.scope = globalSymbolTable.globals;
-        for (Decl decl : node.decls) {
-            decl.accept(this);
-        }
+        node.decls.stream().forEachOrdered(x -> x.accept(this));
     }
 
     @Override
@@ -36,9 +34,7 @@ public class SemanticChecker implements IASTVisitor {
     @Override
     public void visit(CompoundStmt node) {
         node.scope = currentScope;
-        for (Stmt stmt : node.stmts) {
-            stmt.accept(this);
-        }
+        node.stmts.stream().forEachOrdered(x -> x.accept(this));
     }
 
     @Override
@@ -79,10 +75,10 @@ public class SemanticChecker implements IASTVisitor {
         currentFunctionType = (FunctionType)globalSymbolTable.globals.getType(node.name);
         // 新建符号表，并将globals顶层作用域作为外层作用域
         currentScope = new SymbolTable(globalSymbolTable.globals);
-        for (VariableDecl v : node.argTypes) {
-            currentScope.define(v.name, globalSymbolTable.resolveVariableTypeFromAST(v.type));
-            v.scope = currentScope;
-        }
+        node.argTypes.stream().forEachOrdered(x -> {
+            currentScope.define(x.name, globalSymbolTable.resolveVariableTypeFromAST(x.type));
+            x.scope = currentScope;
+        });
 
         visit(node.body);
 

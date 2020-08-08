@@ -2,6 +2,7 @@ package FrontEnd;
 
 import AST.*;
 import IR.*;
+import IR.UnaryOperation.UnaryOp;
 import IR.BinaryOperation.BinaryOp;
 import IR.IntComparison.Condition;
 import Symbol.*;
@@ -14,6 +15,10 @@ public class IRBuilder implements IASTVisitor {
     private boolean getAddress = false;
     private IRRoot irRoot = new IRRoot();
     private GlobalSymbolTable sym;
+
+    public IRBuilder(GlobalSymbolTable sym) {
+        this.sym = sym;
+    }
 
     public IRRoot getIRRoot() {
         return irRoot;
@@ -241,29 +246,129 @@ public class IRBuilder implements IASTVisitor {
 
     @Override
     public void visit(UnaryExpr node) {
+        if (node.op == UnaryExpr.UnaryOp.LOGICAL_NOT) {
+            node.body.ifTrue = node.ifFalse;
+            node.body.ifFalse = node.ifTrue;
+            visit(node.body);
+            return;
+        }
 
+        visit(node.body);
+        VirtualRegister reg;
+        switch (node.op) {
+            case INC:
+                processSelfIncDec(node.body, node, true, false);
+                break;
+            case DEC:
+                processSelfIncDec(node.body, node, false, false);
+                break;
+
+            case POS:
+                node.intValue = node.body.intValue;
+                break;
+
+            case NEG:
+                reg = new VirtualRegister(null);
+                node.intValue = reg;
+                curBB.append(new UnaryOperation(curBB, reg, UnaryOp.NEG, node.body.intValue));
+                break;
+
+            case BITWISE_NOT:
+            default:
+                reg = new VirtualRegister(null);
+                curBB.append(new UnaryOperation(curBB, reg, UnaryOp.NOT, node.body.intValue));
+                break;
+        }
     }
 
     @Override
     public void visit(ArrayAccess node) {
+        boolean getaddr = getAddress;
+        getAddress = false;
+        visit(node.array);
+        getAddress = getaddr;
+
+        IntValue tmp1 = new IntImmediate(((ArrayType)node.array.exprType).bodyType.getRegisterSize());
+        VirtualRegister reg = new VirtualRegister(null);
+        node.intValue = reg;
+        curBB.append(new BinaryOperation(curBB, reg, BinaryOp.MUL, node.subscript.intValue, tmp1));
+        curBB.append(new BinaryOperation(curBB, reg, BinaryOp.ADD, node.array.intValue, reg));
+        if (!getAddress) {
+            curBB.append(new Load(curBB, reg, node.exprType.getRegisterSize(), reg));
+        }
 
     }
 
     @Override
     public void visit(MemberAccess node) {
+        boolean getaddr = getAddress;
+        getAddress = false;
+        visit(node.record);
+        getAddress = getaddr;
 
+        // record的地址？
+        IntValue addr = node.record.intValue;
+        ClassType t = (ClassType)node.record.exprType;
+        SymbolInfo info = t.members.getInfo(node.member);
+        VirtualRegister reg = new VirtualRegister(null);
+        node.intValue = reg;
+        curBB.append(new BinaryOperation(curBB, reg, BinaryOp.ADD, addr, new IntImmediate(info.getOffset())));
+        if (!getaddr) {
+            curBB.append(new Load(curBB, reg, info.getType().getRegisterSize(), reg));
+            node.intValue = reg;
+        }
+
+        if (node.ifTrue != null) {
+            curBB.end(new Branch(curBB, node.intValue, node.ifTrue, node.ifFalse));
+        }
     }
 
     @Override
     public void visit(SelfIncrement node) {
-
+        processSelfIncDec(node.self, node, true, true);
     }
 
     @Override
     public void visit(SelfDecrement node) {
-
+        processSelfIncDec(node.self, node, false, true);
     }
 
+    private void processSelfIncDec(Expr body, Expr node, boolean isInc, boolean isPostfix) {
+        boolean isMemOp = needMemoryAccess(body);
+        // get address
+        boolean getaddr = getAddress;
+        getAddress = isMemOp;
+        visit(body);
+        IntValue addr = body.intValue;
+
+        // get value
+        getAddress = false;
+        visit(body);
+        getAddress = getaddr;
+
+        // stuffs
+        BinaryOp op = isInc ? BinaryOp.ADD : BinaryOp.SUB;
+        IntImmediate one = new IntImmediate(1);
+        VirtualRegister reg;
+
+        // if postfix, backup old value
+        if (isPostfix) {
+            reg = new VirtualRegister(null);
+            curBB.append(new Move(curBB, reg, body.intValue));
+            node.intValue = reg;
+        } else {
+            node.intValue = body.intValue;
+        }
+
+        // if need memory operation, introduce temporary register
+        if (isMemOp) {
+            reg = new VirtualRegister(null);
+            curBB.append(new BinaryOperation(curBB, reg, op, body.intValue, one));
+            curBB.append(new Store(curBB, body.exprType.getMemorySize(), addr, reg));
+        } else {
+            curBB.append(new BinaryOperation(curBB, (VirtualRegister) body.intValue, op, body.intValue, one));
+        }
+    }
     // 声明变量
     @Override
     public void visit(VariableDecl node) {
@@ -279,12 +384,11 @@ public class IRBuilder implements IASTVisitor {
                 node.init.ifTrue = new BasicBlock(null);
                 node.init.ifFalse = new BasicBlock(null);
             }
+            // 然后访问node.init节点
+            node.init.accept(this);
+            // isMemOp为什么是false？
+            assign(false, node.init.exprType.getMemorySize(), reg, node.init);
         }
-
-        // 然后访问node.init节点
-        node.init.accept(this);
-        // isMemOp为什么是false？
-        assign(false, node.init.exprType.getMemorySize(), reg, node.init);
     }
 
     // 是否需要访问内存，比如访问类的成员变量或者访问数组中的元素
@@ -367,7 +471,14 @@ public class IRBuilder implements IASTVisitor {
 
     @Override
     public void visit(FunctionCall node) {
-
+        node.parameters.forEach(x -> x.accept(this));
+        FunctionType type = (FunctionType) node.name.exprType;
+        Function func = irRoot.functions.get(type.name);
+        VirtualRegister reg = new VirtualRegister(null);
+        Call call = new Call(curBB, reg, func);
+        node.parameters.forEach(x -> call.appendArg(x.intValue));
+        curBB.append(call);
+        node.intValue = reg;
     }
 
     @Override
@@ -375,6 +486,7 @@ public class IRBuilder implements IASTVisitor {
         curFunction = new Function(node.functionType);
         irRoot.functions.put(node.name, curFunction); // 根节点中保存当前定义的函数
         curBB = curFunction.getStartBB(); // 当前基本块是函数的开始基本块
+
         for (VariableDecl v : node.argTypes) {
             v.accept(this);
         }

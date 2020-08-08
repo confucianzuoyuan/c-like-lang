@@ -13,6 +13,7 @@ public class Return extends BranchInstruction {
         visitor.visit(this);
     }
 
+    // 获取返回值
     public IntValue getRet() {
         return ret;
     }

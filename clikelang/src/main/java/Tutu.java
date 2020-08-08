@@ -1,7 +1,9 @@
 import AST.Program;
-import FrontEnd.ASTBuilder;
-import FrontEnd.ASTPrinter;
-import FrontEnd.SemanticChecker;
+import BackEnd.ASTInterpreter;
+import BackEnd.GlobalEnvironment;
+import BackEnd.IRPrinter;
+import FrontEnd.*;
+import IR.IRRoot;
 import Parser.TutuLexer;
 import Parser.TutuParser;
 import Symbol.GlobalSymbolTable;
@@ -16,6 +18,7 @@ public class Tutu {
     private InputStream in;
     private PrintStream out;
     private Program ast;
+    private IRRoot ir;
 
     public Tutu(InputStream in, PrintStream out) {
         this.in = in;
@@ -31,24 +34,46 @@ public class Tutu {
         in = null;
     }
 
+    private void buildIR() {
+        GlobalSymbolTable sym = new GlobalSymbolTable();
+        ClassSymbolScanner classSymbolScanner = new ClassSymbolScanner(sym);
+        ClassFunctionDeclarator classFunctionDeclarator = new ClassFunctionDeclarator(sym);
+        SemanticChecker semanticChecker = new SemanticChecker(sym);
+        IRBuilder irBuilder = new IRBuilder(sym);
+
+        ir = irBuilder.getIRRoot();
+        ast.accept(classSymbolScanner);
+        ast.accept(classFunctionDeclarator);
+        ast.accept(semanticChecker);
+        ast.accept(irBuilder);
+    }
+
     private void printAST() {
         ast.accept(new ASTPrinter(out));
     }
 
-    private void semanticChecker() {
-        GlobalSymbolTable sym = new GlobalSymbolTable();
-        ast.accept(new SemanticChecker(sym));
+    private void interpretAST() {
+        GlobalEnvironment globalEnvironment = new GlobalEnvironment();
+        ASTInterpreter astInterpreter = new ASTInterpreter(globalEnvironment);
+        ast.accept(astInterpreter);
+        astInterpreter.executeMain();
+    }
+
+    private void printIR() {
+        ir.accept(new IRPrinter(out));
     }
 
     public void run() throws Exception {
         buildAST();
         printAST();
-        semanticChecker();
+        interpretAST();
+//        buildIR();
+//        printIR();
     }
 
     public static void main(String[] args) throws Exception {
         // check options
-        String inFile = "/Users/yuanzuo/Desktop/c-like-lang/clikelang/testcase/syntaxerror.tutu";
+        String inFile = "/Users/yuanzuo/Desktop/c-like-lang/clikelang/testcase/basictest.tutu";
         String outFile = "out";
         // run compiler
         InputStream in = new FileInputStream(inFile);

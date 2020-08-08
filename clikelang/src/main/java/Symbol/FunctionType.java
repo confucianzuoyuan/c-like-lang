@@ -17,11 +17,6 @@ public class FunctionType extends Type {
         this.type = Types.FUNCTION;
     }
 
-    public void addArg(String name, VariableType type) {
-        argNames.add(name);
-        argTypes.add(type);
-    }
-
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
