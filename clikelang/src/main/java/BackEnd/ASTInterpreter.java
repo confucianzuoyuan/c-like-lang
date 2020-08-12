@@ -1,6 +1,10 @@
 package BackEnd;
 
 import AST.*;
+import Symbol.Type;
+
+import java.lang.reflect.Array;
+import java.util.Arrays;
 
 public class ASTInterpreter implements IASTVisitor {
     private Environment currentEnv;
@@ -93,7 +97,9 @@ public class ASTInterpreter implements IASTVisitor {
 
     @Override
     public void visit(ArrayAccess node) {
-
+        node.env = currentEnv;
+        visit(node.array);
+        visit(node.subscript);
     }
 
     @Override
@@ -163,7 +169,12 @@ public class ASTInterpreter implements IASTVisitor {
 
     @Override
     public void visit(NewExpr node) {
-
+        node.env = currentEnv;
+        for (int i = 0; i < node.dim.size(); ++i) {
+            Expr x = node.dim.get(i);
+            if (x == null) break;
+            visit(x);
+        }
     }
 
     @Override
@@ -179,7 +190,12 @@ public class ASTInterpreter implements IASTVisitor {
 
     @Override
     public void visit(ForLoop node) {
-
+        node.env = currentEnv;
+        node.initWithDecl.stream().forEachOrdered(x -> x.accept(this));
+        visit(node.init);
+        visit(node.cond);
+        visit(node.step);
+        visit(node.body);
     }
 
     @Override
@@ -239,7 +255,7 @@ public class ASTInterpreter implements IASTVisitor {
             VariableDecl s = ((VariableDeclStmt) stmt).decl;
 
             if (s.init != null) {
-                s.env.setInfo(s.name, ((IntConst) s.init).value);
+                s.env.setInfo(s.name, evaluate(s.init));
             }
         }
         if (stmt instanceof CompoundStmt) {
@@ -249,13 +265,23 @@ public class ASTInterpreter implements IASTVisitor {
         }
         if (stmt instanceof BinaryExpr) {
             if (((BinaryExpr) stmt).op == BinaryExpr.BinaryOp.ASSIGN) {
-                Identifier lhs = (Identifier) ((BinaryExpr) stmt).lhs;
-                IntConst rhs = (IntConst) ((BinaryExpr) stmt).rhs;
+                if (((BinaryExpr) stmt).lhs instanceof Identifier) {
+                    Identifier lhs = (Identifier) ((BinaryExpr) stmt).lhs;
+                    IntConst rhs = (IntConst) ((BinaryExpr) stmt).rhs;
 
-                String name = lhs.name;
-                Integer value = rhs.value;
+                    String name = lhs.name;
+                    Integer value = rhs.value;
 
-                stmt.env.setInfo(name, value);
+                    stmt.env.setInfo(name, value);
+                }
+                if (((BinaryExpr) stmt).lhs instanceof ArrayAccess) {
+                    Identifier id = (Identifier)((ArrayAccess) ((BinaryExpr) stmt).lhs).array;
+                    IntConst subscript = (IntConst) ((ArrayAccess) ((BinaryExpr) stmt).lhs).subscript;
+
+                    Integer[] array = (Integer[]) stmt.env.getInfo(id.name);
+
+                    array[subscript.value] = ((IntConst)((BinaryExpr) stmt).rhs).value;
+                }
             }
         }
         if (stmt instanceof IfStmt) {
@@ -274,12 +300,23 @@ public class ASTInterpreter implements IASTVisitor {
         if (expr instanceof Identifier) {
             return expr.env.getInfoCurrent(((Identifier) expr).name);
         }
+        if (expr instanceof ArrayAccess) {
+            Integer[] array = (Integer[]) expr.env.getInfo(((Identifier) ((ArrayAccess) expr).array).name);
+            Integer subscript = (Integer) evaluate(((ArrayAccess) expr).subscript);
+            return array[subscript];
+        }
         if (expr instanceof BinaryExpr) {
             if (((BinaryExpr) expr).op == BinaryExpr.BinaryOp.DIV) {
                 Integer lhs = (Integer) evaluate(((BinaryExpr) expr).lhs);
                 Integer rhs = (Integer) evaluate(((BinaryExpr) expr).rhs);
 
                 return lhs / rhs;
+            }
+            if (((BinaryExpr) expr).op == BinaryExpr.BinaryOp.ADD) {
+                Integer lhs = (Integer) evaluate(((BinaryExpr) expr).lhs);
+                Integer rhs = (Integer) evaluate(((BinaryExpr) expr).rhs);
+
+                return lhs + rhs;
             }
             if (((BinaryExpr) expr).op == BinaryExpr.BinaryOp.NE) {
                 Object lhs = evaluate(((BinaryExpr) expr).lhs);
@@ -290,6 +327,18 @@ public class ASTInterpreter implements IASTVisitor {
         }
         if (expr instanceof IntConst) {
             return ((IntConst) expr).value;
+        }
+        if (expr instanceof NewExpr) {
+            TypeNode type = ((NewExpr) expr).type;
+            if (type.getType() == Type.Types.INT) {
+                int length = ((NewExpr) expr).dim.size();
+                int[] dimensions = new int[length];
+                for (int i = 0; i < length; i++) {
+                    dimensions[i] = (Integer) evaluate(((NewExpr) expr).dim.get(i));
+                }
+                Object array = Array.newInstance(Integer.class, dimensions);
+                return array;
+            }
         }
         return null;
     }

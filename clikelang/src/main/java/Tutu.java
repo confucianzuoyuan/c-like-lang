@@ -73,7 +73,7 @@ public class Tutu {
 
     public static void main(String[] args) throws Exception {
         // check options
-        String inFile = "/Users/yuanzuo/Desktop/c-like-lang/clikelang/testcase/basictest.tutu";
+        String inFile = "/Users/yuanzuo/Desktop/c-like-lang/clikelang/testcase/test1.tutu";
         String outFile = "out";
         // run compiler
         InputStream in = new FileInputStream(inFile);

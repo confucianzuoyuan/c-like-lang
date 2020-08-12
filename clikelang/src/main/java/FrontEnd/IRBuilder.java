@@ -176,7 +176,7 @@ public class IRBuilder implements IASTVisitor {
                 break;
         }
 
-        // 初始化一个寄存器，用来保存整数比较结果？
+        // 初始化一个寄存器，用来保存整数比较结果
         VirtualRegister reg = new VirtualRegister(null);
         curBB.append(new IntComparison(curBB, reg, cond, node.lhs.intValue, node.rhs.intValue));
         if (node.ifTrue != null) {

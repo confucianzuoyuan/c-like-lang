@@ -2,31 +2,144 @@ Program
     FunctionDecl: main
         PrimitiveTypeNode: INT
         CompoundStmt
+            VariableDeclStmt ->             VariableDecl: la
+                PrimitiveTypeNode: INT
+                IntConst, value:5
+            VariableDeclStmt ->             VariableDecl: lb
+                PrimitiveTypeNode: INT
+                IntConst, value:10
             VariableDeclStmt ->             VariableDecl: a
-                PrimitiveTypeNode: INT
-                IntConst, value:5
+                ArrayTypeNode
+                    PrimitiveTypeNode: INT
             VariableDeclStmt ->             VariableDecl: b
-                PrimitiveTypeNode: INT
-                IntConst, value:5
+                ArrayTypeNode
+                    PrimitiveTypeNode: INT
+                NewExpr
+                    PrimitiveTypeNode: INT
+                    Identifier, name:lb
             VariableDeclStmt ->             VariableDecl: c
-                PrimitiveTypeNode: INT
-            IfStmt
-                BinaryExpr
-                    BinaryOpNE
-                    BinaryExpr
-                        BinaryOpDIV
-                        Identifier, name:a
-                        Identifier, name:b
+                ArrayTypeNode
+                    ArrayTypeNode
+                        PrimitiveTypeNode: INT
+                NewExpr
+                    PrimitiveTypeNode: INT
+                    IntConst, value:2
+            BinaryExpr
+                BinaryOpASSIGN
+                Identifier, name:a
+                NewExpr
+                    PrimitiveTypeNode: INT
+                    Identifier, name:la
+            BinaryExpr
+                BinaryOpASSIGN
+                ArrayAccess
+                    Identifier, name:c
+                    IntConst, value:0
+                Identifier, name:a
+            BinaryExpr
+                BinaryOpASSIGN
+                ArrayAccess
+                    Identifier, name:c
                     IntConst, value:1
-                CompoundStmt
+                Identifier, name:b
+            VariableDeclStmt ->             VariableDecl: cnt
+                PrimitiveTypeNode: INT
+                IntConst, value:0
+            ForLoop
+                VariableDecl: i
+                    PrimitiveTypeNode: INT
+                    IntConst, value:0
+                BinaryExpr
+                    BinaryOpLT
+                    Identifier, name:i
+                    IntConst, value:2
+                UnaryExpr
+                    UnaryOpINC
+                    Identifier, name:i
+                ForLoop
+                    VariableDecl: j
+                        PrimitiveTypeNode: INT
+                        IntConst, value:0
+                    BinaryExpr
+                        BinaryOpLT
+                        Identifier, name:j
+                        Identifier, name:la
+                    UnaryExpr
+                        UnaryOpINC
+                        Identifier, name:j
                     BinaryExpr
                         BinaryOpASSIGN
-                        Identifier, name:c
-                        IntConst, value:10
-                CompoundStmt
+                        ArrayAccess
+                            ArrayAccess
+                                Identifier, name:c
+                                Identifier, name:i
+                            Identifier, name:j
+                        UnaryExpr
+                            UnaryOpINC
+                            Identifier, name:cnt
+            ForLoop
+                VariableDecl: j
+                    PrimitiveTypeNode: INT
+                    Identifier, name:la
+                BinaryExpr
+                    BinaryOpLT
+                    Identifier, name:j
+                    Identifier, name:lb
+                UnaryExpr
+                    UnaryOpINC
+                    Identifier, name:j
+                BinaryExpr
+                    BinaryOpASSIGN
+                    ArrayAccess
+                        ArrayAccess
+                            Identifier, name:c
+                            IntConst, value:1
+                        Identifier, name:j
+                    UnaryExpr
+                        UnaryOpINC
+                        Identifier, name:cnt
+            VariableDeclStmt ->             VariableDecl: sum
+                PrimitiveTypeNode: INT
+                IntConst, value:0
+            ForLoop
+                VariableDecl: i
+                    PrimitiveTypeNode: INT
+                    IntConst, value:0
+                BinaryExpr
+                    BinaryOpLT
+                    Identifier, name:i
+                    Identifier, name:la
+                UnaryExpr
+                    UnaryOpINC
+                    Identifier, name:i
+                BinaryExpr
+                    BinaryOpASSIGN
+                    Identifier, name:sum
                     BinaryExpr
-                        BinaryOpASSIGN
-                        Identifier, name:c
-                        IntConst, value:20
+                        BinaryOpADD
+                        Identifier, name:sum
+                        ArrayAccess
+                            Identifier, name:a
+                            Identifier, name:i
+            ForLoop
+                VariableDecl: i
+                    PrimitiveTypeNode: INT
+                    IntConst, value:0
+                BinaryExpr
+                    BinaryOpLT
+                    Identifier, name:i
+                    Identifier, name:lb
+                UnaryExpr
+                    UnaryOpINC
+                    Identifier, name:i
+                BinaryExpr
+                    BinaryOpASSIGN
+                    Identifier, name:sum
+                    BinaryExpr
+                        BinaryOpADD
+                        Identifier, name:sum
+                        ArrayAccess
+                            Identifier, name:b
+                            Identifier, name:i
             ReturnStmt
-                Identifier, name:c
+                Identifier, name:sum
